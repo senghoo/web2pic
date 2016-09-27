@@ -24,8 +24,32 @@ func NewSnap(url string, dockerURI string) *Snap {
 	}
 }
 
-func (s *Snap) Snap() io.Reader {
-	return nil
+func (s *Snap) Snap() (err error) {
+	err = s.takeSnap()
+	if err != nil {
+		return
+	}
+	return
+}
+
+func (s *Snap) SnapFilename() string {
+	return fmt.Sprintf("%s/snap.png", s.dir)
+}
+
+func (s *Snap) SnapReader() (reader io.ReadCloser, size int64, err error) {
+	f, err := os.Open(s.SnapFilename())
+	if err != nil {
+		return
+	}
+	reader = f
+
+	stat, err := f.Stat()
+	if err != nil {
+		return
+	}
+
+	size = stat.Size()
+	return
 }
 
 func (s *Snap) Clear() {
@@ -35,7 +59,7 @@ func (s *Snap) Clear() {
 }
 
 func (s *Snap) takeSnap() (err error) {
-	dir, err := ioutil.TempDir("", "snap")
+	dir, err := ioutil.TempDir("/tmp", "snap")
 	if err != nil {
 		return
 	}
@@ -45,21 +69,24 @@ func (s *Snap) takeSnap() (err error) {
 	return
 }
 
-func (s *Snap) snapFilename() string {
-	return fmt.Sprintf("%s/snap.png", s.dir)
-}
-
 func (s *Snap) runSnapDocker() (err error) {
 	client, err := docker.NewClient(s.dockerURI)
 	if err != nil {
 		return
 	}
 
+	share := fmt.Sprintf("%s:/tmp/snap", s.dir)
+	hostConfig := &docker.HostConfig{
+		Binds: []string{
+			share,
+		},
+	}
+
 	container, err := client.CreateContainer(docker.CreateContainerOptions{
 		Name: "",
 		Config: &docker.Config{
 			Image:        SNAP_IMAGE,
-			Cmd:          []string{fmt.Sprintf("capture %s %s", s.url, "/tmp/snap/snap.png")},
+			Cmd:          []string{"capture", s.url, "/tmp/snap/snap.png"},
 			OpenStdin:    true,
 			StdinOnce:    true,
 			AttachStdin:  true,
@@ -67,6 +94,7 @@ func (s *Snap) runSnapDocker() (err error) {
 			AttachStderr: true,
 			Tty:          true,
 		},
+		HostConfig: hostConfig,
 	})
 
 	if err != nil {
@@ -81,13 +109,7 @@ func (s *Snap) runSnapDocker() (err error) {
 		})
 	}()
 
-	hostConfig := &docker.HostConfig{
-		Binds: []string{
-			fmt.Sprintf("%s:/tmp/snap", s.dir),
-		},
-	}
-
-	err = client.StartContainer(container.ID, hostConfig)
+	err = client.StartContainer(container.ID, nil)
 	if err != nil {
 		return
 	}
