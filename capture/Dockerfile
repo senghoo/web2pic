@@ -2,7 +2,7 @@ FROM ubuntu:16.04
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         cutycapt xvfb \
-        ttf-arphic-ukai ttf-arphic-uming ttf-wqy-zenhei \
+        fonts-arphic-ukai fonts-arphic-uming ttf-wqy-zenhei \
         flashplugin-nonfree \
     && rm -rf /var/lib/apt/lists/*
 ADD capture /usr/local/bin
