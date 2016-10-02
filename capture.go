@@ -58,7 +58,7 @@ func main() {
 
 	// serve
 	serve := &http.Server{
-		Addr:    ":8080",
+		Addr:    addr,
 		Handler: mux,
 	}
 	log.Printf("Listening %s", serve.Addr)
